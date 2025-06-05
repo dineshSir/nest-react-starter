@@ -8,4 +8,3 @@ import { khaltiConfig } from 'src/configurations/khalti.config';
   exports: [KhaltiModule],
 })
 export class KhaltiPaymentModule {}
-.
