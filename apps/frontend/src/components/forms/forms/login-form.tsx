@@ -30,9 +30,8 @@ const LoginForm = () => {
   const onSignIn = useMutation({
     mutationFn: async (data: LoginFormType) => {
       try {
-        console.log("1");
         const res = await Fetch<JWTS>({
-          url: "/auth/signin",
+          url: "/authentication/sign-in",
           method: "POST",
           data: data,
         });

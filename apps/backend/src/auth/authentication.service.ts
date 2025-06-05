@@ -156,6 +156,10 @@ export class AuthenticationService {
     return await this.generateTokens(user);
   }
 
+  async getMe(){
+    
+  }
+
   async generateTokens(user: User) {
     const refreshTokenId = randomUUID();
     const [accessToken, refreshToken] = await Promise.all([

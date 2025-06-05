@@ -3,7 +3,7 @@ export type User = {
   middleName?: string;
   lastName: string;
   mobileNumber: string;
-  roles: [{name:string}];
+  roles: string[];
   email: string;
   id: number;
 };

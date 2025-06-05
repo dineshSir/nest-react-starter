@@ -17,7 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
-  Settings
+  Settings,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -45,7 +45,6 @@ const AdminSidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
       icon: BookDashed,
       isActive: pathname === "/admin-dashboard",
     },
-    
   ];
 
   const operationsItems = [
@@ -202,9 +201,7 @@ const AdminSidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
 
       {!isCollapsed && (
         <div className="p-4 border-t border-white/10">
-          <div className="text-xs text-white/60 text-center">
-            Town Development Fund
-          </div>
+          <div className="text-xs text-white/60 text-center">Hello Starter</div>
         </div>
       )}
     </div>

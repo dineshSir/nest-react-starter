@@ -26,13 +26,11 @@ function RouteComponent() {
       <div>
         <Sidebar isOpen={isOpen} setIsOpen={setIsOpen} />
       </div>
-      <div
-        className="flex flex-col overflow-scroll"
-      >
-        <div className="bg-primary">
+      <div className="flex flex-col overflow-scroll w-full">
+        <div className="bg-primary ">
           <Header />
         </div>
-        <div className=" bg-card-primary px-[8px] py-[20px] lg:mr-[24px] h-[94dvh]  overflow-y-scroll">
+        <div className=" bg-card-primary px-[8px] py-[20px] h-[94dvh]  overflow-y-scroll">
           <Outlet />
         </div>
       </div>

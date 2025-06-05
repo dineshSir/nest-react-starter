@@ -1,9 +1,20 @@
-import { createFileRoute } from '@tanstack/react-router'
+import PaymentCard from "@/components/shared/payment-card";
+import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute('/_app/_admin/dashboard')({
+export const Route = createFileRoute("/_app/_admin/dashboard")({
   component: RouteComponent,
-})
+});
 
 function RouteComponent() {
-  return <div>Hello "/_app/_admin/dashboard"!</div>
+  return (
+    <div>
+      <PaymentCard
+        open={true}
+        setOpen={() => {}}
+        amount="100"
+        applicationId="1"
+        vacancyId="1"
+      />
+    </div>
+  );
 }

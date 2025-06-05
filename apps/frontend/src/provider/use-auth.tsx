@@ -12,7 +12,7 @@ interface AuthContext {
   setUser: (user: User) => void;
   setJwts: (tokens: JWTS) => void;
   logout: () => void;
-  roles: string[]
+  roles: string[];
 }
 
 const AuthContext = createContext<AuthContext>({
@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContext>({
   setUser: () => {},
   setJwts: () => {},
   logout: () => {},
-  roles: []
+  roles: [],
 });
 const cookies = new Cookies();
 const cookieOptions = {
@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [access_token, setAccessToken] = useState<string | null>(null);
+
   const logout = () => {
     cookies.remove("access_token");
     cookies.remove("refresh_token");
@@ -79,16 +80,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setLoading(true);
     Fetch<User>({
-      url: "/auth/me",
+      url: "/authentication/me",
       headers: {
         Authorization: `Bearer ${access_token}`,
       },
     })
       .then((user: User) => {
         if (user) {
-         const roles: string[] = []
-         user.roles.map((role:{name:string})=> roles.push(role.name))
-         setRoles(roles)
+          const roles: string[] = [];
+          user.roles.map((role) => roles.push(role));
+          setRoles(roles);
           setUser(user);
         } else {
           logout();
@@ -111,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         setJwts: setTokens,
         logout,
-        roles
+        roles,
       }}
     >
       {loading ? <LoadingAnimation /> : children}

@@ -39,7 +39,7 @@ function RouteComponent() {
     mutationFn: (data: SignUpFormType) => {
       const dataWithRoles = {...data,roles:["user"]}
       return Fetch({
-        url: "/auth/signup",
+        url: "/authentication/sign-up",
         method: "POST",
         data: dataWithRoles,
       });

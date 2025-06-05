@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -15,6 +16,8 @@ import { AuthType } from './enums/auth-type.enum';
 import { RequiredPermissions } from './decorators/permission.decorator';
 import { RolePermissions } from './enums/role-permission.enum';
 import { SignUpUserDto } from './dtos/sign-up-user.dto';
+import { ActiveUser } from './decorators/active-user.decorator';
+import { ActiveUserData } from './interfaces/active-user-data.interfce';
 
 @Controller('authentication')
 export class AuthenticationController {
@@ -41,6 +44,12 @@ export class AuthenticationController {
     @Body() signInDto: SignInDto,
   ) {
     return this.authenticationService.signIn(signInDto);
+  }
+
+  @Auth(AuthType.Bearer)
+  @Get('me')
+  me(@ActiveUser() loggedInUser: ActiveUserData) {
+    return { email: loggedInUser.email, roles: loggedInUser.roles };
   }
 
   @Auth(AuthType.None)
