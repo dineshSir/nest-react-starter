@@ -10,26 +10,19 @@ const PaymentCard = ({
   open,
   amount,
   setOpen,
-  vacancyId,
-  applicationId
 }: {
   open: boolean;
   amount: string;
   setOpen: (open: boolean) => void;
-  vacancyId: string;
-  applicationId: string;
 }) => {
-  const [paymentMethod, setPaymentMethod] = useState<
-    "esewa" | "khalti" 
-  >("esewa");
+  const [paymentMethod, setPaymentMethod] = useState<"esewa" | "khalti">(
+    "esewa"
+  );
   const [isNext, setIsNext] = useState<boolean>(false);
   const handlePayment = async (payment_method: string) => {
-    const url = "/payment/initiate";
+    const url = "/online-payment/khalti-pay";
     const data = {
-      applicationFee: amount,
-      paymentMethod: payment_method,
-      vacancyId: vacancyId ,
-      applicationId: applicationId ,
+amount: amount,
     };
     try {
       const response = await Fetch({
@@ -38,18 +31,14 @@ const PaymentCard = ({
         data: data,
       });
       if (response) {
+        
         const responseData: any = response;
-
-        if (responseData?.paymentMethod == "esewa") {
-          esewaCall(responseData.esewaFormData);
-        }
-        if (responseData?.paymentMethod == "khalti") {
-          khaltiCall(responseData.data);
-        }
+          khaltiCall(responseData);
+        
       } else {
         toast.error("Service currently unavailable");
       }
-    } catch (error:any) {
+    } catch (error: any) {
       toast.error(error.error);
     }
   };
@@ -71,6 +60,7 @@ const PaymentCard = ({
   };
 
   const khaltiCall = async (data: any) => {
+    console.log(data)
     const a = document.createElement("a");
     a.href = data.payment_url;
     a.target = "_blank";
@@ -143,7 +133,7 @@ const PaymentCard = ({
                     },
                   ]}
                   selectedMethod={paymentMethod}
-                  onSelectChange={(e: "esewa" | "khalti" ) =>
+                  onSelectChange={(e: "esewa" | "khalti") =>
                     setPaymentMethod(e)
                   }
                 />
@@ -198,7 +188,7 @@ const PaymentCard = ({
                 NPR {amount}
               </div>
             </div>
-          
+
             <div className="mt-4 flex items-center gap-4 justify-end">
               <div>
                 <MyButton
@@ -210,7 +200,7 @@ const PaymentCard = ({
               <div>
                 <MyButton
                   label="Confirm Payment"
-                  onClick={()=>handlePayment(paymentMethod)}
+                  onClick={() => handlePayment(paymentMethod)}
                   arrowRightIcon
                   className="text-sm"
                 />

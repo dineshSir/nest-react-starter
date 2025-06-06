@@ -12,6 +12,7 @@ import { APP_PIPE } from '@nestjs/core';
 import { UserModule } from './modules/user/user.module';
 import { DatabaseModule } from './database/database.module';
 import { KhaltiPaymentModule } from './common/helper-modules/khalti-payment/khalti-payment.module';
+import { OnlinePaymentModule } from './common/helper-modules/online-payments/online-payment.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { KhaltiPaymentModule } from './common/helper-modules/khalti-payment/khal
     RoleModule,
     UserModule,
     AuthModule,
+    OnlinePaymentModule,
   ],
   providers: [
     {

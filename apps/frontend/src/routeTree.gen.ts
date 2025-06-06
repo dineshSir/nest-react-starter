@@ -19,8 +19,8 @@ import { Route as AuthForgotPasswordImport } from './routes/_auth/forgot-passwor
 import { Route as AppUserImport } from './routes/_app/_user'
 import { Route as AppAdminImport } from './routes/_app/_admin'
 import { Route as AppUserIndexImport } from './routes/_app/_user/index'
-import { Route as AppUserSuccessImport } from './routes/_app/_user/success'
-import { Route as AppUserFailedImport } from './routes/_app/_user/failed'
+import { Route as AppAdminSuccessImport } from './routes/_app/_admin/success'
+import { Route as AppAdminFailedImport } from './routes/_app/_admin/failed'
 import { Route as AppAdminDashboardImport } from './routes/_app/_admin/dashboard'
 
 // Create/Update Routes
@@ -69,16 +69,16 @@ const AppUserIndexRoute = AppUserIndexImport.update({
   getParentRoute: () => AppUserRoute,
 } as any)
 
-const AppUserSuccessRoute = AppUserSuccessImport.update({
+const AppAdminSuccessRoute = AppAdminSuccessImport.update({
   id: '/success',
   path: '/success',
-  getParentRoute: () => AppUserRoute,
+  getParentRoute: () => AppAdminRoute,
 } as any)
 
-const AppUserFailedRoute = AppUserFailedImport.update({
+const AppAdminFailedRoute = AppAdminFailedImport.update({
   id: '/failed',
   path: '/failed',
-  getParentRoute: () => AppUserRoute,
+  getParentRoute: () => AppAdminRoute,
 } as any)
 
 const AppAdminDashboardRoute = AppAdminDashboardImport.update({
@@ -147,19 +147,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminDashboardImport
       parentRoute: typeof AppAdminImport
     }
-    '/_app/_user/failed': {
-      id: '/_app/_user/failed'
+    '/_app/_admin/failed': {
+      id: '/_app/_admin/failed'
       path: '/failed'
       fullPath: '/failed'
-      preLoaderRoute: typeof AppUserFailedImport
-      parentRoute: typeof AppUserImport
+      preLoaderRoute: typeof AppAdminFailedImport
+      parentRoute: typeof AppAdminImport
     }
-    '/_app/_user/success': {
-      id: '/_app/_user/success'
+    '/_app/_admin/success': {
+      id: '/_app/_admin/success'
       path: '/success'
       fullPath: '/success'
-      preLoaderRoute: typeof AppUserSuccessImport
-      parentRoute: typeof AppUserImport
+      preLoaderRoute: typeof AppAdminSuccessImport
+      parentRoute: typeof AppAdminImport
     }
     '/_app/_user/': {
       id: '/_app/_user/'
@@ -175,10 +175,14 @@ declare module '@tanstack/react-router' {
 
 interface AppAdminRouteChildren {
   AppAdminDashboardRoute: typeof AppAdminDashboardRoute
+  AppAdminFailedRoute: typeof AppAdminFailedRoute
+  AppAdminSuccessRoute: typeof AppAdminSuccessRoute
 }
 
 const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminDashboardRoute: AppAdminDashboardRoute,
+  AppAdminFailedRoute: AppAdminFailedRoute,
+  AppAdminSuccessRoute: AppAdminSuccessRoute,
 }
 
 const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
@@ -186,14 +190,10 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 )
 
 interface AppUserRouteChildren {
-  AppUserFailedRoute: typeof AppUserFailedRoute
-  AppUserSuccessRoute: typeof AppUserSuccessRoute
   AppUserIndexRoute: typeof AppUserIndexRoute
 }
 
 const AppUserRouteChildren: AppUserRouteChildren = {
-  AppUserFailedRoute: AppUserFailedRoute,
-  AppUserSuccessRoute: AppUserSuccessRoute,
   AppUserIndexRoute: AppUserIndexRoute,
 }
 
@@ -232,8 +232,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof AuthLoginRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/dashboard': typeof AppAdminDashboardRoute
-  '/failed': typeof AppUserFailedRoute
-  '/success': typeof AppUserSuccessRoute
+  '/failed': typeof AppAdminFailedRoute
+  '/success': typeof AppAdminSuccessRoute
   '/': typeof AppUserIndexRoute
 }
 
@@ -243,8 +243,8 @@ export interface FileRoutesByTo {
   '/login': typeof AuthLoginRoute
   '/reset-password': typeof AuthResetPasswordRoute
   '/dashboard': typeof AppAdminDashboardRoute
-  '/failed': typeof AppUserFailedRoute
-  '/success': typeof AppUserSuccessRoute
+  '/failed': typeof AppAdminFailedRoute
+  '/success': typeof AppAdminSuccessRoute
   '/': typeof AppUserIndexRoute
 }
 
@@ -258,8 +258,8 @@ export interface FileRoutesById {
   '/_auth/login': typeof AuthLoginRoute
   '/_auth/reset-password': typeof AuthResetPasswordRoute
   '/_app/_admin/dashboard': typeof AppAdminDashboardRoute
-  '/_app/_user/failed': typeof AppUserFailedRoute
-  '/_app/_user/success': typeof AppUserSuccessRoute
+  '/_app/_admin/failed': typeof AppAdminFailedRoute
+  '/_app/_admin/success': typeof AppAdminSuccessRoute
   '/_app/_user/': typeof AppUserIndexRoute
 }
 
@@ -294,8 +294,8 @@ export interface FileRouteTypes {
     | '/_auth/login'
     | '/_auth/reset-password'
     | '/_app/_admin/dashboard'
-    | '/_app/_user/failed'
-    | '/_app/_user/success'
+    | '/_app/_admin/failed'
+    | '/_app/_admin/success'
     | '/_app/_user/'
   fileRoutesById: FileRoutesById
 }
@@ -343,15 +343,15 @@ export const routeTree = rootRoute
       "filePath": "_app/_admin.tsx",
       "parent": "/_app",
       "children": [
-        "/_app/_admin/dashboard"
+        "/_app/_admin/dashboard",
+        "/_app/_admin/failed",
+        "/_app/_admin/success"
       ]
     },
     "/_app/_user": {
       "filePath": "_app/_user.tsx",
       "parent": "/_app",
       "children": [
-        "/_app/_user/failed",
-        "/_app/_user/success",
         "/_app/_user/"
       ]
     },
@@ -371,13 +371,13 @@ export const routeTree = rootRoute
       "filePath": "_app/_admin/dashboard.tsx",
       "parent": "/_app/_admin"
     },
-    "/_app/_user/failed": {
-      "filePath": "_app/_user/failed.tsx",
-      "parent": "/_app/_user"
+    "/_app/_admin/failed": {
+      "filePath": "_app/_admin/failed.tsx",
+      "parent": "/_app/_admin"
     },
-    "/_app/_user/success": {
-      "filePath": "_app/_user/success.tsx",
-      "parent": "/_app/_user"
+    "/_app/_admin/success": {
+      "filePath": "_app/_admin/success.tsx",
+      "parent": "/_app/_admin"
     },
     "/_app/_user/": {
       "filePath": "_app/_user/index.tsx",

@@ -10,7 +10,7 @@ export const khaltiConfig = registerAs('khalti', (): KhaltiOptions => {
     throw new Error(`Invalid KHALTI_PAYMENT_MODE: ${paymentMode}`);
   }
   return {
-    secretKey: process.env.KHALTI_SECRET_KEY!,
+    secretKey: process.env.KHALTI_LIVE_SECRET_KEY!,
     paymentMode: paymentMode as PaymentMode,
   };
 });
