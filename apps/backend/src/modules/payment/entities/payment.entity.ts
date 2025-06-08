@@ -3,8 +3,8 @@ import { Column, Entity } from 'typeorm';
 import { PaymentGateway } from '../enums/payment-gateways.enum';
 import { PaymentStatus } from '../enums/payment-status.enum';
 
-@Entity('user_payment')
-export class UserPayment extends CommonEntity {
+@Entity()
+export class Payment extends CommonEntity {
   @Column()
   transactionUuid: string;
 

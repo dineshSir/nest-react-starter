@@ -1,7 +1,7 @@
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsNumber, Min } from 'class-validator';
 
-export class CreateOnlinePaymentDto {
+export class InitiatePaymentDto {
   @Transform(({ value }) => {
     if (typeof value == 'string' && value.trim() == '') return value;
     const number = Number(value);

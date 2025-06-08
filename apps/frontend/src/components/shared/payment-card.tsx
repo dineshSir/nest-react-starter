@@ -20,7 +20,7 @@ const PaymentCard = ({
   );
   const [isNext, setIsNext] = useState<boolean>(false);
   const handlePayment = async (payment_method: string) => {
-    const url = "/online-payment/khalti-pay";
+    const url = "/payment/khalti-pay";
     const data = {
 amount: amount,
     };

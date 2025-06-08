@@ -11,14 +11,14 @@ import { CloudinaryModule } from './common/helper-modules/cloudinary/cloudinary.
 import { APP_PIPE } from '@nestjs/core';
 import { UserModule } from './modules/user/user.module';
 import { DatabaseModule } from './database/database.module';
-import { KhaltiPaymentModule } from './common/helper-modules/khalti-payment/khalti-payment.module';
-import { OnlinePaymentModule } from './common/helper-modules/online-payments/online-payment.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { PaymentGateway } from './common/helper-modules/payment-gateways/payment-gateway.module';
 
 @Module({
   imports: [
     ConfigurationModule,
     DatabaseModule,
-    KhaltiPaymentModule,
+    PaymentGateway,
     RedisModule,
     MailingModule,
     SmsNepalModule,
@@ -28,7 +28,7 @@ import { OnlinePaymentModule } from './common/helper-modules/online-payments/onl
     RoleModule,
     UserModule,
     AuthModule,
-    OnlinePaymentModule,
+    PaymentModule,
   ],
   providers: [
     {
