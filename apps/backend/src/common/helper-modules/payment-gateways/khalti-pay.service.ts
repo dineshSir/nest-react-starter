@@ -6,10 +6,8 @@ import {
 } from '@nestjs/common';
 import axios from 'axios';
 import { KhaltiPayInitiateInterface } from 'src/common/interfaces/khalti-payment-initiate.interface';
-import dataSource from 'src/database/seeds/seeds';
 import { DataSource } from 'typeorm';
 import { KhaltiPayHistory } from './entities/khalti-response-history.entity';
-import { response } from 'express';
 
 @Injectable()
 export class KhaltiPayService {
@@ -62,7 +60,15 @@ export class KhaltiPayService {
 
       return verifiedData;
     } catch (error) {
-      if (error.response.data.status == 'User canceled') {
+      if (
+        [
+          'User canceled',
+          'Pending',
+          'Initiated',
+          'Refunded',
+          'Expired',
+        ].includes(error.response.data.status)
+      ) {
         const verifiedData = error.response.data;
         this.saveKhaltiResponseHistory(verifiedData);
         return verifiedData;
@@ -86,7 +92,6 @@ export class KhaltiPayService {
         khaltiPayHistoryInstance,
       );
     } catch (error) {
-      console.log(error);
       throw new InternalServerErrorException(
         `Error while saving khalti history.`,
       );

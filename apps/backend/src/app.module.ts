@@ -11,7 +11,6 @@ import { CloudinaryModule } from './common/helper-modules/cloudinary/cloudinary.
 import { APP_PIPE } from '@nestjs/core';
 import { UserModule } from './modules/user/user.module';
 import { DatabaseModule } from './database/database.module';
-import { PaymentModule } from './modules/payment/payment.module';
 import { PaymentGateway } from './common/helper-modules/payment-gateways/payment-gateway.module';
 
 @Module({
@@ -28,7 +27,6 @@ import { PaymentGateway } from './common/helper-modules/payment-gateways/payment
     RoleModule,
     UserModule,
     AuthModule,
-    PaymentModule,
   ],
   providers: [
     {
