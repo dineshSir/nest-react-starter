@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -46,7 +47,6 @@ export class PaymentService {
       }),
     );
     if (error) {
-      console.log(error);
       throw error;
     }
 
@@ -55,7 +55,6 @@ export class PaymentService {
     );
 
     if (_error) {
-      console.log(_error.message);
       if (_error instanceof BadGatewayException)
         throw new BadGatewayException(_error.message);
       else if (_error instanceof BadRequestException)
@@ -76,6 +75,37 @@ export class PaymentService {
   }
 
   async verifyKhaltiPay(khaltiTransactionResponse: any) {
-    // const {pidx, }
+    const { pidx, transaction_id, total_amount, status, refunded } =
+      khaltiTransactionResponse;
+    const verificationResponse =
+      await this.khaltiPayService.verifyKhaltiPayment(pidx);
+    const {
+      pidx: v_pidx,
+      total_amount: v_total_amount,
+      status: v_status,
+      transaction_id: v_transaction_id,
+      refunded: v_refunded,
+    } = verificationResponse;
+
+    console.log(pidx, v_pidx);
+    console.log(transaction_id, v_transaction_id);
+    console.log(+total_amount, v_total_amount);
+
+    if (
+      pidx !== v_pidx ||
+      transaction_id !== v_transaction_id ||
+      +total_amount !== v_total_amount
+    )
+      throw new ConflictException(
+        `Incomming informations and verification information form khalti mismatch.`,
+      );
+
+    if (v_status == 'Pending') console.log('Pending');
+    else if (v_status == 'Initiated') console.log('Initiated');
+    else if (v_status == 'Refunded' && v_refunded == true)
+      console.log('Refunded');
+    else if (v_status == 'Expired') console.log('Expired');
+    else if (v_status == 'User canceled') console.log('Cancelled');
+    else console.log('completed');
   }
 }

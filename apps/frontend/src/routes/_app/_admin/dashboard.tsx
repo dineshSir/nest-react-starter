@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_app/_admin/dashboard")({
 function RouteComponent() {
   return (
     <div>
-      <PaymentCard open={true} setOpen={() => {}} amount="100" />
+      <PaymentCard open={true} setOpen={() => {}} amount="2101" />
     </div>
   );
 }

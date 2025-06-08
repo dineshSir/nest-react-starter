@@ -18,7 +18,7 @@ export class PaymentController {
   @Get('/khalti-callback')
   @Redirect('http://localhost:3001/success')
   async verifyKhaltiPayment(@Query() khaltiTransactionResponse: any) {
-    console.log(khaltiTransactionResponse);
+    console.log(khaltiTransactionResponse.status);
     return this.paymentService.verifyKhaltiPay(khaltiTransactionResponse);
   }
 
