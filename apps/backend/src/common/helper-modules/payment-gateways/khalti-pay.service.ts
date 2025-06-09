@@ -22,7 +22,7 @@ export class KhaltiPayService {
           'Content-Type': 'application/json',
         },
         data: {
-          return_url: process.env.KHALTI_CALLBACK_URL,
+          return_url: process.env.KHALTI_CALLBACK_URI,
           website_url: process.env.WEBSITE_URL,
           ...khaltiPayInitData,
         },
