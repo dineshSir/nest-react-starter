@@ -9,51 +9,83 @@ import { AuthType } from 'src/auth/enums/auth-type.enum';
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
-  @Post()
+  @Post('/esewa')
   async getEsewaInitiationData(@Body() initiatePaymentDto: InitiatePaymentDto) {
     return this.paymentService.getEsewaInitiationData(initiatePaymentDto);
   }
 
   @Get('/esewa-callback')
   async verify(@Query('data') esewaTransactionResponse: string) {
-    console.log(esewaTransactionResponse);
-    return 'hello';
+    const paymentStatus = await this.paymentService.verifyEsewaPayment(
+      esewaTransactionResponse,
+    );
+
+    let redirectUrl = 'http://localhost:3001/payment/esewa/complete';
+
+    switch (paymentStatus) {
+      case 'PENDING':
+        redirectUrl = 'http://localhost:3001/payment/esewa/pending';
+        break;
+      case 'COMPLETE':
+        redirectUrl = 'http://localhost:3001/payment/esewa/complete';
+        break;
+      case 'FULL_REFUND':
+        redirectUrl = 'http://localhost:3001/payment/esewa/full-refund';
+        break;
+      case 'PARTIAL_REFUND':
+        redirectUrl = 'http://localhost:3001/payment/esewa/partial-refund';
+        break;
+      case 'AMBIGUOUS':
+        redirectUrl = 'http://localhost:3001/payment/esewa/ambiguous';
+        break;
+      case 'NOT_FOUND':
+        redirectUrl = 'http://localhost:3001/payment/esewa/not-found';
+        break;
+      case 'CANCELED':
+        redirectUrl = 'http://localhost:3001/payment/esewa/canceled';
+        break;
+      default:
+        redirectUrl = 'http://localhost:3001/payment/esewa/complete';
+        break;
+    }
+
+    return { url: redirectUrl, statusCode: 302 };
   }
 
-  // @Post('/khalti-pay')
-  // initiateKhaltiPay(@Body() initiatePaymentDto: InitiatePaymentDto) {
-  //   return this.paymentService.initiateKhaltiPay(initiatePaymentDto);
-  // }
+  @Post('/khalti-pay')
+  initiateKhaltiPay(@Body() initiatePaymentDto: InitiatePaymentDto) {
+    return this.paymentService.initiateKhaltiPay(initiatePaymentDto);
+  }
 
-  // @Get('/khalti-callback')
-  // async verifyKhaltiPayment(@Query() khaltiTransactionResponse: any) {
-  //   const result = await this.paymentService.verifyKhaltiPay(
-  //     khaltiTransactionResponse,
-  //   );
+  @Get('/khalti-callback')
+  async verifyKhaltiPayment(@Query() khaltiTransactionResponse: any) {
+    const result = await this.paymentService.verifyKhaltiPay(
+      khaltiTransactionResponse,
+    );
 
-  //   let redirectUrl = 'http://localhost:3001/payment/success';
+    let redirectUrl = 'http://localhost:3001/payment/success';
 
-  //   switch (result.status) {
-  //     case 'Pending':
-  //       redirectUrl = 'http://localhost:3001/payment/pending';
-  //       break;
-  //     case 'Initiated':
-  //       redirectUrl = 'http://localhost:3001/payment/initiated';
-  //       break;
-  //     case 'Refunded':
-  //       redirectUrl = 'http://localhost:3001/payment/refunded';
-  //       break;
-  //     case 'Expired':
-  //       redirectUrl = 'http://localhost:3001/payment/expired';
-  //       break;
-  //     case 'User canceled':
-  //       redirectUrl = 'http://localhost:3001/payment/cancelled';
-  //       break;
-  //     default:
-  //       redirectUrl = 'http://localhost:3001/payment/success';
-  //       break;
-  //   }
+    switch (result.status) {
+      case 'Pending':
+        redirectUrl = 'http://localhost:3001/payment/pending';
+        break;
+      case 'Initiated':
+        redirectUrl = 'http://localhost:3001/payment/initiated';
+        break;
+      case 'Refunded':
+        redirectUrl = 'http://localhost:3001/payment/refunded';
+        break;
+      case 'Expired':
+        redirectUrl = 'http://localhost:3001/payment/expired';
+        break;
+      case 'User canceled':
+        redirectUrl = 'http://localhost:3001/payment/cancelled';
+        break;
+      default:
+        redirectUrl = 'http://localhost:3001/payment/success';
+        break;
+    }
 
-  //   return { url: redirectUrl, statusCode: 302 };
-  // }
+    return { url: redirectUrl, statusCode: 302 };
+  }
 }

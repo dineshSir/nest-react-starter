@@ -4,24 +4,17 @@ import { Column, Entity } from 'typeorm';
 @Entity()
 export class EsewaPaymentHistory extends CommonEntity {
   @Column()
-  pidx: string;
+  product_code: string;
+
+  @Column()
+  transaction_uuid: number;
 
   @Column()
   total_amount: number;
 
-  @Column({
-    nullable: true,
-  })
+  @Column()
   status: string;
 
-  @Column({
-    nullable: true,
-  })
-  transaction_id: string;
-
   @Column()
-  fee: number;
-
-  @Column()
-  refunded: boolean;
+  ref_id: string;
 }

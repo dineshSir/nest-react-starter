@@ -5,8 +5,11 @@ import { PaymentStatus } from '../enums/payment-status.enum';
 
 @Entity()
 export class Payment extends CommonEntity {
-  @Column()
+  @Column({ name: 'transaction_uuid' })
   transactionUuid: string;
+
+  @Column({ name: 'product_code' })
+  productCode: string;
 
   @Column({})
   amount: number;

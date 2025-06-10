@@ -81,19 +81,19 @@ export class KhaltiPayService {
   }
 
   async saveKhaltiResponseHistory(verifiedData: any) {
-    const khaltiPayHistoryRepository =
-      this.dataSource.getRepository(KhaltiPayHistory);
-
-    const khaltiPayHistoryInstance =
-      khaltiPayHistoryRepository.create(verifiedData);
-
     try {
+      const khaltiPayHistoryRepository =
+        this.dataSource.getRepository(KhaltiPayHistory);
+
+      const khaltiPayHistoryInstance =
+        khaltiPayHistoryRepository.create(verifiedData);
+
       const newKhaltiPayHistory = await khaltiPayHistoryRepository.save(
         khaltiPayHistoryInstance,
       );
     } catch (error) {
       throw new InternalServerErrorException(
-        `Error while saving khalti history.`,
+        `Error while saving khalti payment history.`,
       );
     }
     return;
