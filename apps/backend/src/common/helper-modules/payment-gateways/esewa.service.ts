@@ -1,29 +1,21 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 import { EsewaPaymentInitiateInterface } from 'src/common/interfaces/payment-initiate.interface';
 
 @Injectable()
 export class EsewaService {
   constructor(private readonly configService: ConfigService) {}
-  async initiate(esewaInitData: EsewaPaymentInitiateInterface) {
+  async getEsewaInitiationSignature(
+    esewaInitData: EsewaPaymentInitiateInterface,
+  ) {
     const { total_amount, transaction_uuid, product_code } = esewaInitData;
     const signatureInput = `total_amount=${total_amount},transaction_uuid=${transaction_uuid},product_code=${product_code}`;
     const signature = await this.generateEsewaSignature(signatureInput);
-
-    const esewaFormData = {
-      amount: total_amount,
-      tax_amount: 0,
-      product_service_charge: 0,
-      product_delivery_charge: 0,
-      product_code: product_code,
-      total_amount: total_amount,
-      transaction_uuid: transaction_uuid,
-      success_url: this.configService.get('ESEWA_SUCCESS_URL'),
-      failure_url: this.configService.get('ESEWA_FAILURE_URL'),
-      signed_field_names: 'total_amount,transaction_uuid,product_code',
-      signature: signature,
-    };
-    return esewaFormData;
   }
 
   async generateEsewaSignature(signatureInput: string) {
@@ -39,19 +31,42 @@ export class EsewaService {
     }
   }
 
-  async verifyEsewaPayment(data) {
-    //verify esewa payment
-    //   try {
-    //     const esewaSecretKey = process.env.ESEWA_SECRET_KEY || '8gBm/:&EnhH.1/q ';
-    //     const hash = CryptoJS.HmacSHA256(signatureInput, esewaSecretKey);
-    //     const hashInBase64 = CryptoJS.enc.Base64.stringify(hash);
-    //     return hashInBase64;
-    //   } catch (error) {
-    //     throw new InternalServerErrorException(
-    //       'Could not initiate esewa payment: error while generating esewa signature.',
-    //     );
-    //   }
-    // }
+  async verifyEsewaPayment(esewaTransactionResponse: string) {
+    try {
+      const decodedResponse = atob(esewaTransactionResponse);
+      const decodedData = await JSON.parse(decodedResponse);
+
+      const message = decodedData.signed_field_names
+        .split(',')
+        .map((signedName: string) => {
+          let value = decodedData[signedName];
+          if (signedName === 'total_amount' && typeof value === 'string') {
+            value = value.replace(/,/g, '');
+          }
+          return `${signedName}=${value}`;
+        })
+        .join(',');
+      const signature = this.generateEsewaSignature(message);
+      if (signature !== decodedData.signature) throw new ConflictException();
+
+      const [decodedTotalAmount, decodedProductCode, decodedTransactionUUID] = [
+        typeof decodedData.total_amount === 'string'
+          ? decodedData.total_amount.replace(/,/g, '')
+          : decodedData.total_amount,
+        decodedData.product_code,
+        decodedData.transaction_uuid,
+      ];
+
+      const response = await axios({
+        method: 'GET',
+        url: `${process.env.ESEWA_VERIFICATION_URL}?product_code=${decodedProductCode}&total_amount=${decodedTotalAmount}&transaction_uuid=${decodedTransactionUUID}`,
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {}
+
     // async verifyEsewaPayment(data) {
     //   try {
     //     const decodedString = atob(data);

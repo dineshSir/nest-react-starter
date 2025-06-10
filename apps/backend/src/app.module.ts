@@ -12,6 +12,7 @@ import { APP_PIPE } from '@nestjs/core';
 import { UserModule } from './modules/user/user.module';
 import { DatabaseModule } from './database/database.module';
 import { PaymentGateway } from './common/helper-modules/payment-gateways/payment-gateway.module';
+import { PaymentModule } from './modules/payment/payment.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { PaymentGateway } from './common/helper-modules/payment-gateways/payment
     RoleModule,
     UserModule,
     AuthModule,
+    PaymentModule,
   ],
   providers: [
     {
