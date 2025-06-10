@@ -5,7 +5,7 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import axios from 'axios';
-import { KhaltiPayInitiateInterface } from 'src/common/interfaces/khalti-payment-initiate.interface';
+import { KhaltiPayInitiateInterface } from 'src/common/interfaces/payment-initiate.interface';
 import { DataSource } from 'typeorm';
 import { KhaltiPayHistory } from './entities/khalti-response-history.entity';
 
