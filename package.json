@@ -1,5 +1,5 @@
 {
-  "name": "nest-blueprint-two",
+  "name": "nest-react-starter",
   "private": true,
   "scripts": {
     "build": "turbo run build",
