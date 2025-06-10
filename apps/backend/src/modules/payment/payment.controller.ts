@@ -63,26 +63,26 @@ export class PaymentController {
       khaltiTransactionResponse,
     );
 
-    let redirectUrl = 'http://localhost:3001/payment/success';
+    let redirectUrl = 'http://localhost:3001/payment/khalti/success';
 
     switch (result.status) {
       case 'Pending':
-        redirectUrl = 'http://localhost:3001/payment/pending';
+        redirectUrl = 'http://localhost:3001/payment/khalti/pending';
         break;
       case 'Initiated':
-        redirectUrl = 'http://localhost:3001/payment/initiated';
+        redirectUrl = 'http://localhost:3001/payment/khalti/initiated';
         break;
       case 'Refunded':
-        redirectUrl = 'http://localhost:3001/payment/refunded';
+        redirectUrl = 'http://localhost:3001/payment/khalti/refunded';
         break;
       case 'Expired':
-        redirectUrl = 'http://localhost:3001/payment/expired';
+        redirectUrl = 'http://localhost:3001/payment/khalti/expired';
         break;
       case 'User canceled':
-        redirectUrl = 'http://localhost:3001/payment/cancelled';
+        redirectUrl = 'http://localhost:3001/payment/khalti/cancelled';
         break;
       default:
-        redirectUrl = 'http://localhost:3001/payment/success';
+        redirectUrl = 'http://localhost:3001/payment/khalti/success';
         break;
     }
 

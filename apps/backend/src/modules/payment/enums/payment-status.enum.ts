@@ -2,7 +2,7 @@ export enum PaymentStatus {
   //common
   COMPLETED = 'completed',
   PENDING = 'pending',
-  CANCELED = 'cancelled',
+  CANCELED = 'canceled',
 
   //only khalti
   INITIATED = 'initiated',

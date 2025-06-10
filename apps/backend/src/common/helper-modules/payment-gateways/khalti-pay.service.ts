@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -8,6 +9,10 @@ import axios from 'axios';
 import { KhaltiPayInitiateInterface } from 'src/common/interfaces/payment-initiate.interface';
 import { DataSource } from 'typeorm';
 import { KhaltiPayHistory } from './entities/khalti-response-history.entity';
+import {
+  KhaltiHistorySavingError,
+  KhaltiTransactionVerificationError,
+} from 'src/common/errors/khalti-payment-gateway.errors';
 
 @Injectable()
 export class KhaltiPayService {
@@ -43,8 +48,12 @@ export class KhaltiPayService {
     }
   }
 
-  async verifyKhaltiPayment(pidx: string) {
+  async verifyKhaltiPayment(khaltiTransactionResponse: any) {
     try {
+      let { pidx, transaction_id, total_amount, status, refunded } =
+        khaltiTransactionResponse;
+      transaction_id = transaction_id === '' ? null : transaction_id;
+
       const response = await axios({
         method: 'post',
         url: `${process.env.KHALTI_VERIFICATION_URL}`,
@@ -57,6 +66,21 @@ export class KhaltiPayService {
 
       const verifiedData = response.data;
       await this.saveKhaltiResponseHistory(verifiedData);
+
+      const {
+        pidx: v_pidx,
+        total_amount: v_total_amount,
+        status: v_status,
+        transaction_id: v_transaction_id,
+        refunded: v_refunded,
+      } = verifiedData;
+
+      if (
+        pidx !== v_pidx ||
+        transaction_id !== v_transaction_id ||
+        +total_amount !== v_total_amount
+      )
+        throw new ConflictException();
 
       return verifiedData;
     } catch (error) {
@@ -74,9 +98,7 @@ export class KhaltiPayService {
         return verifiedData;
       }
 
-      throw new InternalServerErrorException(
-        `Error while verifying khalti transaction.`,
-      );
+      throw new KhaltiTransactionVerificationError();
     }
   }
 
@@ -92,9 +114,7 @@ export class KhaltiPayService {
         khaltiPayHistoryInstance,
       );
     } catch (error) {
-      throw new InternalServerErrorException(
-        `Error while saving khalti payment history.`,
-      );
+      throw new KhaltiHistorySavingError();
     }
     return;
   }
