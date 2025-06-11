@@ -9,9 +9,10 @@ import { EsewaPaymentInitiateInterface } from 'src/common/interfaces/payment-ini
 import { DataSource } from 'typeorm';
 import { EsewaPaymentHistory } from './entities/esewa-response-history.entity';
 import {
-  EsewaPaymentHistorySavingError,
-  EsewaPaymentVerificationError,
-  EsewaServiceUnavailableError,
+  EsewaPaymentHistorySavingException,
+  EsewaPaymentVerificationException,
+  EsewaServiceUnavailableException,
+  EsewaSignatureMismatchException,
 } from 'src/common/errors/esewa-payment-gateway.errors';
 
 @Injectable()
@@ -58,7 +59,8 @@ export class EsewaService {
         })
         .join(',');
       const signature = this.generateEsewaSignature(message);
-      if (signature !== decodedData.signature) throw new ConflictException();
+      if (signature !== decodedData.signature)
+        throw new EsewaSignatureMismatchException(`Signatures did not match.`);
 
       const [decodedTotalAmount, decodedProductCode, decodedTransactionUUID] = [
         typeof decodedData.total_amount === 'string'
@@ -78,18 +80,23 @@ export class EsewaService {
       });
       const verifiedData = verifiedResponse.data;
       if (Object.keys(verifiedData).includes('code'))
-        throw new EsewaServiceUnavailableError();
+        throw new EsewaServiceUnavailableException(
+          `Esewa service is currently unavailable. Try again later!`,
+        );
 
       await this.saveEsewaResponseHistory(verifiedData);
 
-      return verifiedData;
+      return verifiedResponse.data;
     } catch (error) {
       if (
-        error instanceof EsewaServiceUnavailableError ||
-        error instanceof EsewaPaymentHistorySavingError
+        error instanceof EsewaSignatureMismatchException ||
+        error instanceof EsewaServiceUnavailableException ||
+        error instanceof EsewaPaymentHistorySavingException
       )
         throw error;
-      throw new EsewaPaymentVerificationError();
+      throw new EsewaPaymentVerificationException(
+        `Error while verifying esewa payment.`,
+      );
     }
   }
 
@@ -105,7 +112,9 @@ export class EsewaService {
         esewaPaymentHistoryInstance,
       );
     } catch (error) {
-      throw new EsewaPaymentHistorySavingError();
+      throw new EsewaPaymentHistorySavingException(
+        `Error while saving esewa payment data.`,
+      );
     }
     return;
   }

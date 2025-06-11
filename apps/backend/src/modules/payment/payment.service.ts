@@ -22,6 +22,13 @@ import {
   KhaltiHistorySavingError,
   KhaltiTransactionVerificationError,
 } from 'src/common/errors/khalti-payment-gateway.errors';
+import {
+  EsewaPaymentHistorySavingException,
+  EsewaPaymentVerificationException,
+  EsewaServiceUnavailableException,
+  EsewaSignatureMismatchException,
+  UpdatingPaymentAfterVerificationException,
+} from 'src/common/errors/esewa-payment-gateway.errors';
 
 @Injectable()
 export class PaymentService {
@@ -109,7 +116,14 @@ export class PaymentService {
       const updatedPayment = await paymentRepository.save(existingPayment);
       return verifiedData.status;
     } catch (error) {
-      throw new InternalServerErrorException(
+      if (
+        error instanceof EsewaSignatureMismatchException ||
+        error instanceof EsewaServiceUnavailableException ||
+        error instanceof EsewaPaymentHistorySavingException ||
+        error instanceof EsewaPaymentVerificationException
+      )
+        throw error;
+      throw new UpdatingPaymentAfterVerificationException(
         `Error while updating payment after esewa verification.`,
       );
     }
@@ -189,8 +203,6 @@ export class PaymentService {
           transactionUuid: khaltiTransactionResponse.purchase_order_id,
         },
       });
-
-      console.log(existingPayment);
 
       if (!existingPayment) throw new NotFoundException();
 
