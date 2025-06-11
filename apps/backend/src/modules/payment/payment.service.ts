@@ -41,7 +41,6 @@ export class PaymentService {
   async getEsewaInitiationData(initiatePaymentDto: InitiatePaymentDto) {
     const { amount } = initiatePaymentDto;
     let newPayment: Payment | undefined;
-    const paymentRepository = this.dataSource.getRepository(Payment);
     const [result, error] = await safeError(
       runInTransaction(async (queryRunner) => {
         const transactionUuid = generatePaymentUUID();
@@ -60,7 +59,7 @@ export class PaymentService {
         const signatureData: EsewaPaymentInitiateInterface = {
           total_amount: totalAmount,
           transaction_uuid: transactionUuid,
-          product_code: 'something', //this should be available from the frontend, should be adjusted accordingly
+          product_code: process.env.ESEWA_SERVICE_PRODUCT_CODE!, //this should be available from the frontend, should be adjusted accordingly
         };
         const esewaInitiationSignature =
           await this.esewaService.getEsewaInitiationSignature(signatureData);
@@ -70,7 +69,7 @@ export class PaymentService {
           tax_amount: 0,
           product_service_charge: 0,
           product_delivery_charge: 0,
-          product_code: 'product_code',
+          product_code: process.env.ESEWA_SERVICE_PRODUCT_CODE!,
           total_amount: totalAmount,
           transaction_uuid: transactionUuid,
           success_url: this.configService.get('ESEWA_SUCCESS_URL'),
@@ -80,17 +79,19 @@ export class PaymentService {
         };
 
         newPayment.status = PaymentStatus.INITIATED;
-        const updatedNewPayment = paymentRepository.manager.save(
+        const updatedNewPayment = await queryRunner.manager.save(
           Payment,
           newPayment,
         );
-
         return esewaFormData;
       }),
     );
+
     if (error) {
       throw error;
     }
+
+    return result;
   }
 
   async verifyEsewaPayment(esewaTransactionResponse: string) {
@@ -109,9 +110,35 @@ export class PaymentService {
           `Payment not found - has not been initiated.`,
         );
 
-      const statusValue =
-        PaymentStatus[verifiedData.status as keyof typeof PaymentStatus];
-      existingPayment.status = statusValue;
+      let updateStatus: PaymentStatus = PaymentStatus.COMPLETED;
+
+      switch (verifiedData.status) {
+        case 'COMPLETE':
+          updateStatus = PaymentStatus.COMPLETED;
+          break;
+        case 'PENDING':
+          updateStatus = PaymentStatus.PENDING;
+          break;
+        case 'FULL_REFUND':
+          updateStatus = PaymentStatus.FULL_REFUND;
+          break;
+        case 'PARTIAL_REFUND':
+          updateStatus = PaymentStatus.PARTIAL_REFUND;
+          break;
+        case 'AMBIGUOUS':
+          updateStatus = PaymentStatus.AMBIGUOUS;
+          break;
+        case 'NOT_FOUND':
+          updateStatus = PaymentStatus.NOT_FOUND;
+          break;
+        case 'CANCELED':
+          updateStatus = PaymentStatus.CANCELED;
+          break;
+        default:
+          updateStatus = PaymentStatus.COMPLETED;
+      }
+
+      existingPayment.status = updateStatus;
 
       const updatedPayment = await paymentRepository.save(existingPayment);
       return verifiedData.status;

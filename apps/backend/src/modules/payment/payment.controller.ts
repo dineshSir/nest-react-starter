@@ -11,7 +11,7 @@ export class PaymentController {
 
   @Post('/esewa')
   async getEsewaInitiationData(@Body() initiatePaymentDto: InitiatePaymentDto) {
-    return this.paymentService.getEsewaInitiationData(initiatePaymentDto);
+    return await this.paymentService.getEsewaInitiationData(initiatePaymentDto);
   }
 
   @Get('/esewa-callback')

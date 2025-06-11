@@ -1,6 +1,6 @@
 export const generatePaymentUUID = (): string => {
   const timestamp = Date.now();
-  return `Payment - ${timestamp}`;
+  return `Payment-${timestamp}`;
 };
 
 //you can return uuid including different data related to the current payment being done

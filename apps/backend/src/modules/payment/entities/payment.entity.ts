@@ -8,9 +8,6 @@ export class Payment extends CommonEntity {
   @Column({ name: 'transaction_uuid' })
   transactionUuid: string;
 
-  @Column({ name: 'product_code' })
-  productCode: string;
-
   @Column({})
   amount: number;
 

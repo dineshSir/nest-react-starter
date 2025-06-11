@@ -20,9 +20,10 @@ const PaymentCard = ({
   );
   const [isNext, setIsNext] = useState<boolean>(false);
   const handlePayment = async (payment_method: string) => {
-    const url = "/payment/khalti-pay";
+    const url =
+      payment_method === "esewa" ? "/payment/esewa" : "/payment/khalti-pay";
     const data = {
-amount: amount,
+      amount: amount,
     };
     try {
       const response = await Fetch({
@@ -31,10 +32,13 @@ amount: amount,
         data: data,
       });
       if (response) {
-        
         const responseData: any = response;
+        if (payment_method === "esewa") {
+          esewaCall(responseData)
+        } else {
           khaltiCall(responseData);
-        
+        }
+        console.log(response);
       } else {
         toast.error("Service currently unavailable");
       }
@@ -43,12 +47,14 @@ amount: amount,
     }
   };
   const esewaCall = (formData: any) => {
-    var path = "https://rc-epay.esewa.com.np/api/epay/main/v2/form";
+    var path = "https://rc-epay.esewa.com.np/api/epay/main/v2/form/";
     var form = document.createElement("form");
     form.setAttribute("method", "POST");
     form.setAttribute("action", path);
     form.setAttribute("target", "_blank");
+ 
     for (var key in formData) {
+    console.log(formData[key],"=======>")
       var hiddenField = document.createElement("input");
       hiddenField.setAttribute("type", "hidden");
       hiddenField.setAttribute("name", key);
@@ -60,7 +66,7 @@ amount: amount,
   };
 
   const khaltiCall = async (data: any) => {
-    console.log(data)
+    console.log(data);
     const a = document.createElement("a");
     a.href = data.payment_url;
     a.target = "_blank";
