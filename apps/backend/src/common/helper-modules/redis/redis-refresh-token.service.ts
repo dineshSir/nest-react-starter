@@ -39,7 +39,8 @@ export class TokenIdsStorage
 
   async validate(userId: number, tokenId: string) {
     const storedId = await this.redishClient.get(this.getKey(userId));
-    if (storedId !== tokenId) throw new InvalidTokenException(`Invalid token.`);
+    if (storedId !== tokenId)
+      throw new InvalidTokenException(`Invalid refresh token.`);
     return storedId === tokenId;
   }
 
