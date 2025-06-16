@@ -29,3 +29,15 @@ export class UpdatingPaymentAfterVerificationException extends HttpException {
     super(message, HttpStatus.INTERNAL_SERVER_ERROR);
   }
 }
+
+export class InvalidTokenException extends HttpException {
+  constructor(message: string) {
+    super(message, HttpStatus.UNAUTHORIZED);
+  }
+}
+
+export class InvalidOTPException extends HttpException {
+  constructor(message: string) {
+    super(message, HttpStatus.UNAUTHORIZED);
+  }
+}

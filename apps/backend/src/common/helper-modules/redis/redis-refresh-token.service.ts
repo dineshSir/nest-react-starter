@@ -6,12 +6,14 @@ import {
 } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import Redis from 'ioredis';
+import {
+  InvalidOTPException,
+  InvalidTokenException,
+} from 'src/common/errors/esewa-payment-gateway.errors';
 import { redisConfig } from 'src/configurations/redis.config';
 
-export class InvalidatedRefreshTokenError extends Error {}
-
 @Injectable()
-export class RefreshTokenIdsStorage
+export class TokenIdsStorage
   implements OnApplicationBootstrap, OnApplicationShutdown
 {
   constructor(
@@ -37,8 +39,15 @@ export class RefreshTokenIdsStorage
 
   async validate(userId: number, tokenId: string) {
     const storedId = await this.redishClient.get(this.getKey(userId));
-    if (storedId !== tokenId) throw new InvalidatedRefreshTokenError();
+    if (storedId !== tokenId) throw new InvalidTokenException(`Invalid token.`);
     return storedId === tokenId;
+  }
+
+  async validateOTP(userId: number, otpIdentifier: string) {
+    const storedId = await this.redishClient.get(this.getKey(userId));
+    if (storedId !== otpIdentifier)
+      throw new InvalidOTPException(`Invalid OTP. Please try again.`);
+    return storedId === otpIdentifier;
   }
 
   async invalidate(userId: number) {

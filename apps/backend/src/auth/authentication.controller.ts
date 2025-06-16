@@ -18,6 +18,8 @@ import { RolePermissions } from './enums/role-permission.enum';
 import { SignUpUserDto } from './dtos/sign-up-user.dto';
 import { ActiveUser } from './decorators/active-user.decorator';
 import { ActiveUserData } from './interfaces/active-user-data.interfce';
+import { GetSignInOTPDto } from './dtos/get-login-otp';
+import { OTPLoginDto } from './dtos/otp-login.dto';
 
 @Controller('authentication')
 export class AuthenticationController {
@@ -44,6 +46,20 @@ export class AuthenticationController {
     @Body() signInDto: SignInDto,
   ) {
     return this.authenticationService.signIn(signInDto);
+  }
+
+  @Auth(AuthType.None)
+  @HttpCode(HttpStatus.OK)
+  @Post('get-sign-in-otp')
+  async getLoginOTP(@Body() getSignInOTPDto: GetSignInOTPDto) {
+    return await this.authenticationService.getLoginOTP(getSignInOTPDto);
+  }
+
+  @Auth(AuthType.None)
+  @HttpCode(HttpStatus.OK)
+  @Post('otp-sign-in')
+  async otpSignIn(@Body() oTPLoginDto: OTPLoginDto) {
+    return await this.authenticationService.otpSignIn(oTPLoginDto);
   }
 
   @Auth(AuthType.Bearer)

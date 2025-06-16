@@ -1,6 +1,6 @@
 import { CommonEntity } from 'src/common/entities/common.entity';
 import { Permission } from 'src/permission/entities/permission.entity';
-import { User } from 'src/modules/user/entities/user.entity';
+import { User } from 'src/user/entities/user.entity';
 import { Column, Entity, JoinTable, ManyToMany } from 'typeorm';
 
 @Entity()
