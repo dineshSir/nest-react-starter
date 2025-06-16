@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { RolePermissions } from 'src/auth/enums/role-permission.enum';
-import { Permission } from 'src/modules/permission/entities/permission.entity';
+import { Permission } from 'src/permission/entities/permission.entity';
 import { DataSource } from 'typeorm';
 import { Seeder } from 'typeorm-extension';
 

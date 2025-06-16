@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Permission } from 'src/modules/permission/entities/permission.entity';
+import { Permission } from 'src/permission/entities/permission.entity';
 import { Role } from 'src/modules/role/entities/role.entity';
 import { DataSource } from 'typeorm';
 import { Seeder } from 'typeorm-extension';

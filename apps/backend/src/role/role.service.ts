@@ -11,7 +11,7 @@ import { isEqual, omit } from 'lodash';
 import { safeError } from 'src/common/helper-functions/safe-error.helper';
 import { runInTransaction } from 'src/common/helper-functions/transaction.helper';
 import { In, QueryRunner, Repository } from 'typeorm';
-import { Permission } from '../permission/entities/permission.entity';
+import { Permission } from '../../permission/entities/permission.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { Role } from './entities/role.entity';
 import { UpdateRoleDto } from './dto/update-role.dto';
