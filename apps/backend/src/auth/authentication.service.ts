@@ -17,7 +17,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { SignInDto } from './dtos/sign-in.dto';
 import { randomUUID } from 'crypto';
 import { RefreshTokenDto } from './dtos/refresh-token.dto';
-import { TokenIdsStorage } from 'src/common/helper-modules/redis/redis-refresh-token.service';
 import { ActiveUserData } from './interfaces/active-user-data.interfce';
 import { SignUpUserDto } from './dtos/sign-up-user.dto';
 import { jwtConfig } from 'src/configurations/jwt.config';
@@ -32,6 +31,11 @@ import {
   InvalidOTPException,
   InvalidTokenException,
 } from 'src/common/errors/esewa-payment-gateway.errors';
+import {
+  REDIS_REFRESH_TOKEN_KEY_PART,
+  REDIS_SIGN_IN_OTP_KEY_PART,
+} from './constants/auth-constants';
+import { RedisStorageService } from 'src/common/helper-modules/redis/redis-storage.service';
 
 @Injectable()
 export class AuthenticationService {
@@ -41,7 +45,7 @@ export class AuthenticationService {
     private readonly jwtService: JwtService,
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
-    private readonly tokenIdsStorage: TokenIdsStorage,
+    private readonly redisStorageService: RedisStorageService,
     private readonly emailService: EmailService,
   ) {}
 
@@ -196,13 +200,30 @@ export class AuthenticationService {
     if (!user) throw new UnauthorizedException(`User does not exist.`);
 
     try {
-      const isValid = await this.tokenIdsStorage.validateOTP(
+      const storedOTPValue = await this.redisStorageService.getStoredValue(
+        REDIS_SIGN_IN_OTP_KEY_PART,
         user.id,
-        String(oTPLoginDto.otp + 7623),
       );
 
-      if (isValid) {
-        await this.tokenIdsStorage.invalidate(user.id);
+      if (!storedOTPValue)
+        throw new InvalidOTPException(
+          `User information changed. Error getting stored OTP for comparision.`,
+        );
+
+      const isValidOTP = await this.hashingService.compare(
+        String(oTPLoginDto.otp),
+        storedOTPValue,
+      );
+
+      if (isValidOTP) {
+        await this.redisStorageService.invalidate(
+          REDIS_SIGN_IN_OTP_KEY_PART,
+          user.id,
+        );
+      } else {
+        throw new InvalidOTPException(
+          `Invalid OTP. Please check and try again.`,
+        );
       }
     } catch (error) {
       if (error instanceof InvalidOTPException) throw error;
@@ -226,7 +247,13 @@ export class AuthenticationService {
       { name: getSignInOTPDto.email.split('@')[0], otp: otp },
     );
 
-    await this.tokenIdsStorage.insert(user.id, String(otp + 7623));
+    const hashedOTP = await this.hashingService.hash(String(otp));
+
+    await this.redisStorageService.insert(
+      REDIS_SIGN_IN_OTP_KEY_PART,
+      user.id,
+      hashedOTP,
+    );
 
     const OTPToken = await this.signToken(
       user.id,
@@ -262,7 +289,11 @@ export class AuthenticationService {
       ),
     ]);
 
-    await this.tokenIdsStorage.insert(user.id, refreshTokenId);
+    await this.redisStorageService.insert(
+      REDIS_REFRESH_TOKEN_KEY_PART,
+      user.id,
+      refreshTokenId,
+    );
 
     return { accessToken: accessToken, refreshToken: refreshToken };
   }
@@ -286,13 +317,17 @@ export class AuthenticationService {
       if (!user)
         throw new NotFoundException('This person is not the user anymore.');
 
-      const isValid = await this.tokenIdsStorage.validate(
+      const isValid = await this.redisStorageService.validate(
+        REDIS_REFRESH_TOKEN_KEY_PART,
         user.id,
         refreshTokenId,
       );
 
       if (isValid) {
-        await this.tokenIdsStorage.invalidate(user.id);
+        await this.redisStorageService.invalidate(
+          REDIS_REFRESH_TOKEN_KEY_PART,
+          user.id,
+        );
       } else {
         throw new Error('Refresh token is invalid');
       }

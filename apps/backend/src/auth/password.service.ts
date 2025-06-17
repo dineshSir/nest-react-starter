@@ -15,15 +15,15 @@ import { HashingService } from 'src/common/helper-modules/hashing/hashing.servic
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { jwtConfig } from 'src/configurations/jwt.config';
 import { ConfigType } from '@nestjs/config';
-import { TokenIdsStorage } from 'src/common/helper-modules/redis/redis-refresh-token.service';
 import { EmailService } from 'src/common/helper-modules/mailing/mailing.service';
 import { InvalidOTPException } from 'src/common/errors/esewa-payment-gateway.errors';
 import { getRandomInt } from 'src/common/helper-functions/random-integers.helper';
-import { loginOTPTemplate } from 'src/common/helper-modules/mailing/html-as-constants/login-otp-email';
 import { AuthenticationService } from './authentication.service';
 import { ChangePasswordDto } from './dtos/change-password.otp';
 import { ActiveUserData } from './interfaces/active-user-data.interfce';
 import { resetPasswordOTP } from 'src/common/helper-modules/mailing/html-as-constants/reset-password-otp';
+import { RedisStorageService } from 'src/common/helper-modules/redis/redis-storage.service';
+import { REDIS_RESET_PASSWORD_OTP_KEY_PART } from './constants/auth-constants';
 
 @Injectable()
 export class PasswordService {
@@ -33,7 +33,7 @@ export class PasswordService {
     private readonly jwtService: JwtService,
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
-    private readonly tokenIdsStorage: TokenIdsStorage,
+    private readonly redisStorageService: RedisStorageService,
     private readonly emailService: EmailService,
     private readonly authenticationService: AuthenticationService,
   ) {}
@@ -48,18 +48,27 @@ export class PasswordService {
       relations: ['roles'],
     });
     if (!user) throw new UnauthorizedException(`User does not exist.`);
-    const isEqual = await this.hashingService.compare(
+    const existingPasswordMatch = await this.hashingService.compare(
       changePasswordDto.existingPassword,
       user.password,
     );
-    if (!isEqual) {
+    if (!existingPasswordMatch) {
       throw new UnauthorizedException(`Old password does not match.`);
     }
+
+    const matchWithPreviousPassword = await this.hashingService.compare(
+      changePasswordDto.newPassword,
+      user.password,
+    );
+
+    if (matchWithPreviousPassword)
+      throw new ConflictException(
+        `New password should be different from the previous one.`,
+      );
 
     const newHashedPassword = await this.hashingService.hash(
       changePasswordDto.newPassword,
     );
-
     Object.assign(user, { password: newHashedPassword });
     const updatedUserInstance = this.usersRepository.create(user);
     const savedUser = await this.usersRepository.save(updatedUserInstance);
@@ -68,7 +77,6 @@ export class PasswordService {
       message: `Password updated successfully.`,
     };
   }
-
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     let tokenEmail: string;
     try {
@@ -92,19 +100,16 @@ export class PasswordService {
         throw new UnauthorizedException('OTP verification failed.');
       }
     }
-
     if (resetPasswordDto.email !== tokenEmail)
       throw new UnauthorizedException(
         `Unauthorized to reset account password - emails mismatch.`,
       );
-
     const user = await this.usersRepository.findOne({
       select: ['id', 'email', 'password', 'roles'],
       where: { email: tokenEmail },
       relations: ['roles'],
     });
     if (!user) throw new UnauthorizedException(`User does not exist.`);
-
     if (
       await this.hashingService.compare(
         resetPasswordDto.password,
@@ -114,21 +119,17 @@ export class PasswordService {
       throw new ConflictException(
         `You entered old password. Try again with a different one.`,
       );
-
     const hashedPassword = await this.hashingService.hash(
       resetPasswordDto.password,
     );
-
     Object.assign(user, { password: hashedPassword });
     const updatedUserInstance = this.usersRepository.create(user);
     const updatedUser = await this.usersRepository.save(updatedUserInstance);
-
     return {
       success: true,
       message: `Password reset successfull. Continue signing in to your account.`,
     };
   }
-
   async validateResetPasswordOTP(
     validateResetPasswordOTPDto: ValidateResetPasswordOTPDto,
   ) {
@@ -158,35 +159,48 @@ export class PasswordService {
       throw new UnauthorizedException(
         `Unauthorized to reset account password - emails mismatch.`,
       );
-
     const user = await this.usersRepository.findOne({
       select: ['id'],
       where: { email: tokenEmail },
       relations: ['roles'],
     });
     if (!user) throw new UnauthorizedException(`User does not exist.`);
-
     try {
-      const isValid = await this.tokenIdsStorage.validateOTP(
-        user.id,
-        String(validateResetPasswordOTPDto.otp + 6377),
-      );
+      const storedPasswordOTPValue =
+        await this.redisStorageService.getStoredValue(
+          REDIS_RESET_PASSWORD_OTP_KEY_PART,
+          user.id,
+        );
 
-      if (isValid) {
-        await this.tokenIdsStorage.invalidate(user.id);
+      if (!storedPasswordOTPValue)
+        throw new InvalidOTPException(
+          `User information changed. Error getting stored OTP for comparision.`,
+        );
+
+      const isValidOTP = await this.hashingService.compare(
+        String(validateResetPasswordOTPDto.otp),
+        storedPasswordOTPValue,
+      );
+      if (isValidOTP) {
+        await this.redisStorageService.invalidate(
+          REDIS_RESET_PASSWORD_OTP_KEY_PART,
+          user.id,
+        );
+      } else {
+        throw new InvalidOTPException(
+          `Invalid OTP. Please check and try again.`,
+        );
       }
     } catch (error) {
       if (error instanceof InvalidOTPException) throw error;
       throw new InternalServerErrorException(`Error checking validity of OTP.`);
     }
-
     const resetPasswordToken = await this.authenticationService.signToken(
       user.id,
       this.jwtConfiguration.resetPasswordTokenTtl,
       this.jwtConfiguration.resetPasswordSecret!,
       { email: tokenEmail },
     );
-
     return {
       success: true,
       message: `It's a valid OTP, continue resetting password.`,
@@ -204,7 +218,6 @@ export class PasswordService {
       throw new UnauthorizedException(
         `Email does not exist on our system. Continue with Signing Up.`,
       );
-
     const otp = getRandomInt(100000, 999999);
     await this.emailService.sendMail(
       resetForgottenPasswordDto.email,
@@ -213,7 +226,12 @@ export class PasswordService {
       { name: resetForgottenPasswordDto.email.split('@')[0], otp: otp },
     );
 
-    await this.tokenIdsStorage.insert(user.id, String(otp + 6377));
+    const hashedPasswordOTP = await this.hashingService.hash(String(otp));
+    await this.redisStorageService.insert(
+      REDIS_RESET_PASSWORD_OTP_KEY_PART,
+      user.id,
+      hashedPasswordOTP,
+    );
 
     const resetPasswordOTPToken = await this.authenticationService.signToken(
       user.id,
@@ -221,10 +239,9 @@ export class PasswordService {
       this.jwtConfiguration.resetPasswordOtpSecret!,
       { email: resetForgottenPasswordDto.email },
     );
-
     return {
       success: true,
-      message: `OTP has been sent to your email. Valid for 5 minutes.`,
+      message: `OTP has been sent to your email. Valid for 3 minutes.`,
       resetPasswordOTPToken: resetPasswordOTPToken,
     };
   }
