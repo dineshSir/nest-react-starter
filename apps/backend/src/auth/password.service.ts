@@ -23,6 +23,7 @@ import { loginOTPTemplate } from 'src/common/helper-modules/mailing/html-as-cons
 import { AuthenticationService } from './authentication.service';
 import { ChangePasswordDto } from './dtos/change-password.otp';
 import { ActiveUserData } from './interfaces/active-user-data.interfce';
+import { resetPasswordOTP } from 'src/common/helper-modules/mailing/html-as-constants/reset-password-otp';
 
 @Injectable()
 export class PasswordService {
@@ -208,7 +209,7 @@ export class PasswordService {
     await this.emailService.sendMail(
       resetForgottenPasswordDto.email,
       `Nest-react-starter reset password otp`,
-      loginOTPTemplate,
+      resetPasswordOTP,
       { name: resetForgottenPasswordDto.email.split('@')[0], otp: otp },
     );
 
