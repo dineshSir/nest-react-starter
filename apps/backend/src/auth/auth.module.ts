@@ -12,7 +12,7 @@ import { jwtConfig } from 'src/configurations/jwt.config';
 import { redisConfig } from 'src/configurations/redis.config';
 import { User } from 'src/user/entities/user.entity';
 import { Role } from 'src/role/entities/role.entity';
-
+import { PasswordService } from './password.service';
 
 @Module({
   imports: [
@@ -28,6 +28,7 @@ import { Role } from 'src/role/entities/role.entity';
     AccessTokenGuard,
     AuthenticationGuard,
     AuthenticationService,
+    PasswordService,
   ],
   controllers: [AuthenticationController],
 })
