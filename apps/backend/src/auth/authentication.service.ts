@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { safeError } from 'src/common/helper-functions/safe-error.helper';
 import { SignUpDto } from './dtos/sign-up.dto';
-import { ConfigService, ConfigType } from '@nestjs/config';
+import { ConfigType } from '@nestjs/config';
 import { HashingService } from 'src/common/helper-modules/hashing/hashing.service';
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { runInTransaction } from 'src/common/helper-functions/transaction.helper';
@@ -25,13 +25,15 @@ import { User } from 'src/user/entities/user.entity';
 import { Role } from 'src/role/entities/role.entity';
 import { EmailService } from 'src/common/helper-modules/mailing/mailing.service';
 import { loginOTPTemplate } from 'src/common/helper-modules/mailing/html-as-constants/login-otp-email';
-import { GetSignInOTPDto } from './dtos/get-login-otp';
+import { GetSignInOTPDto } from './dtos/get-login.otp';
 import { getRandomInt } from 'src/common/helper-functions/random-integers.helper';
 import { OTPLoginDto } from './dtos/otp-login.dto';
 import {
   InvalidOTPException,
   InvalidTokenException,
 } from 'src/common/errors/esewa-payment-gateway.errors';
+import { ResetForgottenPasswordDto } from './dtos/request-reset-password.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
 
 @Injectable()
 export class AuthenticationService {
@@ -107,7 +109,6 @@ export class AuthenticationService {
             `Email already registered in the system.`,
           );
 
-        const roleRepository = queryRunner.manager.getRepository(Role);
         const incommingRoleIds = signUpUserDto.roleIds.filter((id) => id !== 1); //dont allow to create a super user
         const roleInstances = await queryRunner.manager.find(Role, {
           where: { id: In(incommingRoleIds) },
@@ -166,19 +167,12 @@ export class AuthenticationService {
   }
 
   async otpSignIn(oTPLoginDto: OTPLoginDto) {
-    const user = await this.usersRepository.findOne({
-      select: ['id', 'email', 'password', 'roles'],
-      where: { email: oTPLoginDto.email },
-      relations: ['roles'],
-    });
-    if (!user) throw new UnauthorizedException(`User does not exist.`);
-
     let tokenUserId: number, tokenEmail: string;
     try {
       const { sub, email } = await this.jwtService.verifyAsync(
         oTPLoginDto.otpToken,
         {
-          secret: this.jwtConfiguration.secret,
+          secret: this.jwtConfiguration.signInOtpSecret,
           audience: this.jwtConfiguration.audience,
           issuer: this.jwtConfiguration.issuer,
         },
@@ -190,14 +184,18 @@ export class AuthenticationService {
           'OTP token has expired. Please request a new one.',
         );
       } else if (error instanceof JsonWebTokenError) {
-        throw new UnauthorizedException('Invalid OTP token.');
+        throw new UnauthorizedException('Invalid sign in token.');
       } else {
         throw new UnauthorizedException('OTP verification failed.');
       }
     }
 
-    if (user.id !== tokenUserId || user.email !== tokenEmail)
-      throw new ConflictException(`User email mismatch. Error logging you in.`);
+    const user = await this.usersRepository.findOne({
+      select: ['id', 'email', 'password', 'roles'],
+      where: { id: tokenUserId, email: tokenEmail },
+      relations: ['roles'],
+    });
+    if (!user) throw new UnauthorizedException(`User does not exist.`);
 
     try {
       const isValid = await this.tokenIdsStorage.validateOTP(
@@ -214,6 +212,105 @@ export class AuthenticationService {
     }
 
     return await this.generateTokens(user);
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    let tokenEmail: string;
+    try {
+      const { email } = await this.jwtService.verifyAsync(
+        resetPasswordDto.resetPasswordToken,
+        {
+          secret: this.jwtConfiguration.resetPasswordOtpSecret,
+          audience: this.jwtConfiguration.audience,
+          issuer: this.jwtConfiguration.issuer,
+        },
+      );
+      tokenEmail = email;
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        throw new UnauthorizedException(
+          'OTP token has expired. Please request a new one.',
+        );
+      } else if (error instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Invalid reset password token.');
+      } else {
+        throw new UnauthorizedException('OTP verification failed.');
+      }
+    }
+
+    if (resetPasswordDto.email !== tokenEmail)
+      throw new UnauthorizedException(
+        `Unauthorized to reset account password - emails mismatch.`,
+      );
+
+    const user = await this.usersRepository.findOne({
+      select: ['id', 'email', 'password', 'roles'],
+      where: { email: tokenEmail },
+      relations: ['roles'],
+    });
+    if (!user) throw new UnauthorizedException(`User does not exist.`);
+
+    try {
+      const isValid = await this.tokenIdsStorage.validateOTP(
+        user.id,
+        String(resetPasswordDto.otp + 6377),
+      );
+
+      if (isValid) {
+        await this.tokenIdsStorage.invalidate(user.id);
+      }
+    } catch (error) {
+      if (error instanceof InvalidOTPException) throw error;
+      throw new InternalServerErrorException(`Error checking validity of OTP.`);
+    }
+
+    const hashedPassword = await this.hashingService.hash(
+      resetPasswordDto.password,
+    );
+
+    Object.assign(user, { password: hashedPassword });
+    const updatedUserInstance = this.usersRepository.create(user);
+    const updatedUser = await this.usersRepository.save(updatedUserInstance);
+
+    return {
+      success: true,
+      message: `Password reset successfull. Continue signing in to your account.`,
+    };
+  }
+
+  async getResetPasswordOTP(
+    resetForgottenPasswordDto: ResetForgottenPasswordDto,
+  ) {
+    const user = await this.usersRepository.findOne({
+      where: { email: resetForgottenPasswordDto.email },
+    });
+    if (!user)
+      throw new UnauthorizedException(
+        `Email does not exist on our system. Continue with Signing Up.`,
+      );
+
+    const otp = getRandomInt(100000, 999999);
+    await this.emailService.sendMail(
+      resetForgottenPasswordDto.email,
+      `Nest-react-starter reset password otp`,
+      loginOTPTemplate,
+      { name: resetForgottenPasswordDto.email.split('@')[0], otp: otp },
+    );
+
+    await this.tokenIdsStorage.insert(user.id, String(otp + 6377));
+
+    const resetPasswordToken = await this.signToken(
+      user.id,
+      this.jwtConfiguration.resetPasswordOTPTtl,
+      this.jwtConfiguration.resetPasswordOtpSecret!,
+      { email: resetForgottenPasswordDto.email },
+    );
+
+    return {
+      success: true,
+      message: `OTP has been sent to your email. Valid for 5 minutes.`,
+      resetPasswordToken: resetPasswordToken,
+    };
   }
 
   async getLoginOTP(getSignInOTPDto: GetSignInOTPDto) {
@@ -235,6 +332,7 @@ export class AuthenticationService {
     const OTPToken = await this.signToken(
       user.id,
       this.jwtConfiguration.signInOTPTtl,
+      this.jwtConfiguration.signInOtpSecret!,
       { email: getSignInOTPDto.email },
     );
 
@@ -251,12 +349,18 @@ export class AuthenticationService {
       this.signToken<Partial<ActiveUserData>>(
         user.id,
         this.jwtConfiguration.accessTokenTtl,
+        this.jwtConfiguration.secret!,
         // { email: user.email, role: user.role } this was for Roles Guard
         { email: user.email, roles: user.roles.map((role) => role.name) },
       ),
-      this.signToken(user.id, this.jwtConfiguration.refreshTokenTtl, {
-        refreshTokenId: refreshTokenId,
-      }),
+      this.signToken(
+        user.id,
+        this.jwtConfiguration.refreshTokenTtl,
+        this.jwtConfiguration.secret!,
+        {
+          refreshTokenId: refreshTokenId,
+        },
+      ),
     ]);
 
     await this.tokenIdsStorage.insert(user.id, refreshTokenId);
@@ -301,7 +405,12 @@ export class AuthenticationService {
     }
   }
 
-  private async signToken<T>(userId: number, expiresIn: number, payload?: T) {
+  private async signToken<T>(
+    userId: number,
+    expiresIn: number,
+    secret: string,
+    payload?: T,
+  ) {
     return await this.jwtService.signAsync(
       {
         sub: userId,
@@ -310,7 +419,7 @@ export class AuthenticationService {
       {
         audience: this.jwtConfiguration.audience,
         issuer: this.jwtConfiguration.issuer,
-        secret: this.jwtConfiguration.secret,
+        secret: secret,
         expiresIn,
       },
     );

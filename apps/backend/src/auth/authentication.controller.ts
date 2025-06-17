@@ -18,8 +18,10 @@ import { RolePermissions } from './enums/role-permission.enum';
 import { SignUpUserDto } from './dtos/sign-up-user.dto';
 import { ActiveUser } from './decorators/active-user.decorator';
 import { ActiveUserData } from './interfaces/active-user-data.interfce';
-import { GetSignInOTPDto } from './dtos/get-login-otp';
+import { GetSignInOTPDto } from './dtos/get-login.otp';
 import { OTPLoginDto } from './dtos/otp-login.dto';
+import { ResetForgottenPasswordDto } from './dtos/request-reset-password.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
 
 @Controller('authentication')
 export class AuthenticationController {
@@ -62,16 +64,34 @@ export class AuthenticationController {
     return await this.authenticationService.otpSignIn(oTPLoginDto);
   }
 
-  @Auth(AuthType.Bearer)
-  @Get('me')
-  me(@ActiveUser() loggedInUser: ActiveUserData) {
-    return { email: loggedInUser.email, roles: loggedInUser.roles };
-  }
-
   @Auth(AuthType.None)
   @HttpCode(HttpStatus.OK)
   @Post('refresh-token')
   refreshTokens(@Body() refreshTokenDto: RefreshTokenDto) {
     return this.authenticationService.refreshTokens(refreshTokenDto);
+  }
+
+  @Auth(AuthType.None)
+  @HttpCode(HttpStatus.OK)
+  @Post('request-password-reset')
+  async requestPasswordReset(
+    @Body() resetForgottenPasswordDto: ResetForgottenPasswordDto,
+  ) {
+    return await this.authenticationService.getResetPasswordOTP(
+      resetForgottenPasswordDto,
+    );
+  }
+
+  @Auth(AuthType.None)
+  @HttpCode(HttpStatus.OK)
+  @Post('reset-forgotten-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return await this.authenticationService.resetPassword(resetPasswordDto);
+  }
+
+  @Auth(AuthType.Bearer)
+  @Get('me')
+  me(@ActiveUser() loggedInUser: ActiveUserData) {
+    return { email: loggedInUser.email, roles: loggedInUser.roles };
   }
 }
