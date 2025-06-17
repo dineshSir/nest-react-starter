@@ -1,6 +1,6 @@
 import { IsPhoneNumber } from 'class-validator';
 import { CommonEntity } from 'src/common/entities/common.entity';
-import { Role } from 'src/modules/role/entities/role.entity';
+import { Role } from 'src/role/entities/role.entity';
 import { Column, Entity, ManyToMany } from 'typeorm';
 
 @Entity()

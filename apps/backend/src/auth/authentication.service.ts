@@ -8,21 +8,30 @@ import {
 } from '@nestjs/common';
 import { safeError } from 'src/common/helper-functions/safe-error.helper';
 import { SignUpDto } from './dtos/sign-up.dto';
-import { ConfigService, ConfigType } from '@nestjs/config';
+import { ConfigType } from '@nestjs/config';
 import { HashingService } from 'src/common/helper-modules/hashing/hashing.service';
-import { JwtService } from '@nestjs/jwt';
+import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { runInTransaction } from 'src/common/helper-functions/transaction.helper';
 import { In, QueryRunner, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/modules/user/entities/user.entity';
-import { Role } from 'src/modules/role/entities/role.entity';
 import { SignInDto } from './dtos/sign-in.dto';
 import { randomUUID } from 'crypto';
 import { RefreshTokenDto } from './dtos/refresh-token.dto';
-import { RefreshTokenIdsStorage } from 'src/common/helper-modules/redis/redis-refresh-token.service';
+import { TokenIdsStorage } from 'src/common/helper-modules/redis/redis-refresh-token.service';
 import { ActiveUserData } from './interfaces/active-user-data.interfce';
 import { SignUpUserDto } from './dtos/sign-up-user.dto';
 import { jwtConfig } from 'src/configurations/jwt.config';
+import { User } from 'src/user/entities/user.entity';
+import { Role } from 'src/role/entities/role.entity';
+import { EmailService } from 'src/common/helper-modules/mailing/mailing.service';
+import { loginOTPTemplate } from 'src/common/helper-modules/mailing/html-as-constants/login-otp-email';
+import { GetSignInOTPDto } from './dtos/get-login.otp';
+import { getRandomInt } from 'src/common/helper-functions/random-integers.helper';
+import { OTPLoginDto } from './dtos/otp-login.dto';
+import {
+  InvalidOTPException,
+  InvalidTokenException,
+} from 'src/common/errors/esewa-payment-gateway.errors';
 
 @Injectable()
 export class AuthenticationService {
@@ -32,8 +41,8 @@ export class AuthenticationService {
     private readonly jwtService: JwtService,
     @Inject(jwtConfig.KEY)
     private readonly jwtConfiguration: ConfigType<typeof jwtConfig>,
-    private readonly refreshTokenIdsStorage: RefreshTokenIdsStorage,
-    private readonly configService: ConfigService,
+    private readonly tokenIdsStorage: TokenIdsStorage,
+    private readonly emailService: EmailService,
   ) {}
 
   async signUp(signUpDto: SignUpDto) {
@@ -98,7 +107,6 @@ export class AuthenticationService {
             `Email already registered in the system.`,
           );
 
-        const roleRepository = queryRunner.manager.getRepository(Role);
         const incommingRoleIds = signUpUserDto.roleIds.filter((id) => id !== 1); //dont allow to create a super user
         const roleInstances = await queryRunner.manager.find(Role, {
           where: { id: In(incommingRoleIds) },
@@ -156,8 +164,82 @@ export class AuthenticationService {
     return await this.generateTokens(user);
   }
 
-  async getMe(){
-    
+  async otpSignIn(oTPLoginDto: OTPLoginDto) {
+    let tokenUserId: number, tokenEmail: string;
+    try {
+      const { sub, email } = await this.jwtService.verifyAsync(
+        oTPLoginDto.otpToken,
+        {
+          secret: this.jwtConfiguration.signInOtpSecret,
+          audience: this.jwtConfiguration.audience,
+          issuer: this.jwtConfiguration.issuer,
+        },
+      );
+      [tokenUserId, tokenEmail] = [sub, email];
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        throw new UnauthorizedException(
+          'OTP token has expired. Please request a new one.',
+        );
+      } else if (error instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Invalid sign in token.');
+      } else {
+        throw new UnauthorizedException('OTP verification failed.');
+      }
+    }
+
+    const user = await this.usersRepository.findOne({
+      select: ['id', 'email', 'password', 'roles'],
+      where: { id: tokenUserId, email: tokenEmail },
+      relations: ['roles'],
+    });
+    if (!user) throw new UnauthorizedException(`User does not exist.`);
+
+    try {
+      const isValid = await this.tokenIdsStorage.validateOTP(
+        user.id,
+        String(oTPLoginDto.otp + 7623),
+      );
+
+      if (isValid) {
+        await this.tokenIdsStorage.invalidate(user.id);
+      }
+    } catch (error) {
+      if (error instanceof InvalidOTPException) throw error;
+      throw new InternalServerErrorException(`Error checking validity of OTP.`);
+    }
+
+    return await this.generateTokens(user);
+  }
+
+  async getLoginOTP(getSignInOTPDto: GetSignInOTPDto) {
+    const user = await this.usersRepository.findOne({
+      where: { email: getSignInOTPDto.email },
+    });
+    if (!user) throw new UnauthorizedException(`User does not exist.`);
+
+    const otp = getRandomInt(100000, 999999);
+    await this.emailService.sendMail(
+      getSignInOTPDto.email,
+      `Nest-react-starter login otp`,
+      loginOTPTemplate,
+      { name: getSignInOTPDto.email.split('@')[0], otp: otp },
+    );
+
+    await this.tokenIdsStorage.insert(user.id, String(otp + 7623));
+
+    const OTPToken = await this.signToken(
+      user.id,
+      this.jwtConfiguration.signInOTPTokenTtl,
+      this.jwtConfiguration.signInOtpSecret!,
+      { email: getSignInOTPDto.email },
+    );
+
+    return {
+      success: true,
+      message: `OTP has been sent to your email. Valid for 3 minutes.`,
+      OTPToken: OTPToken,
+    };
   }
 
   async generateTokens(user: User) {
@@ -166,15 +248,21 @@ export class AuthenticationService {
       this.signToken<Partial<ActiveUserData>>(
         user.id,
         this.jwtConfiguration.accessTokenTtl,
+        this.jwtConfiguration.secret!,
         // { email: user.email, role: user.role } this was for Roles Guard
         { email: user.email, roles: user.roles.map((role) => role.name) },
       ),
-      this.signToken(user.id, this.jwtConfiguration.refreshTokenTtl, {
-        refreshTokenId: refreshTokenId,
-      }),
+      this.signToken(
+        user.id,
+        this.jwtConfiguration.refreshTokenTtl,
+        this.jwtConfiguration.secret!,
+        {
+          refreshTokenId: refreshTokenId,
+        },
+      ),
     ]);
 
-    await this.refreshTokenIdsStorage.insert(user.id, refreshTokenId);
+    await this.tokenIdsStorage.insert(user.id, refreshTokenId);
 
     return { accessToken: accessToken, refreshToken: refreshToken };
   }
@@ -198,24 +286,30 @@ export class AuthenticationService {
       if (!user)
         throw new NotFoundException('This person is not the user anymore.');
 
-      const isValid = await this.refreshTokenIdsStorage.validate(
+      const isValid = await this.tokenIdsStorage.validate(
         user.id,
         refreshTokenId,
       );
 
       if (isValid) {
-        await this.refreshTokenIdsStorage.invalidate(user.id);
+        await this.tokenIdsStorage.invalidate(user.id);
       } else {
         throw new Error('Refresh token is invalid');
       }
 
       return await this.generateTokens(user);
     } catch (error) {
+      if (error instanceof InvalidTokenException) throw error;
       throw new UnauthorizedException(`Unauthorized to access resource.`);
     }
   }
 
-  private async signToken<T>(userId: number, expiresIn: number, payload?: T) {
+  async signToken<T>(
+    userId: number,
+    expiresIn: number,
+    secret: string,
+    payload?: T,
+  ) {
     return await this.jwtService.signAsync(
       {
         sub: userId,
@@ -224,7 +318,7 @@ export class AuthenticationService {
       {
         audience: this.jwtConfiguration.audience,
         issuer: this.jwtConfiguration.issuer,
-        secret: this.jwtConfiguration.secret,
+        secret: secret,
         expiresIn,
       },
     );

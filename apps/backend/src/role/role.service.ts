@@ -11,11 +11,11 @@ import { isEqual, omit } from 'lodash';
 import { safeError } from 'src/common/helper-functions/safe-error.helper';
 import { runInTransaction } from 'src/common/helper-functions/transaction.helper';
 import { In, QueryRunner, Repository } from 'typeorm';
-import { Permission } from '../permission/entities/permission.entity';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { Role } from './entities/role.entity';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdatedInterface } from 'src/common/interfaces/crud-response.interface';
+import { Permission } from 'src/permission/entities/permission.entity';
 
 @Injectable()
 export class RoleService {
@@ -27,34 +27,25 @@ export class RoleService {
   ): Promise<{ success: boolean; message: string }> {
     const [message, error] = await safeError(
       runInTransaction(async (queryRunner) => {
-        const roleExists = await this.findWithName(
+        const roleRepository = queryRunner.manager.getRepository(Role);
+
+        const permissionInstances = await this.getPermissionInstances(
+          createRoleDto.permissionIds,
+          queryRunner,
+        );
+
+        let newRole: Role;
+
+        const existingRole: Role | null = await this.findWithName(
           createRoleDto.name,
           queryRunner,
         );
-        if (roleExists)
-          throw new ConflictException(
-            `Role with name : ${createRoleDto.name} already exists.`,
-          );
+        if (existingRole) {
+          newRole = await roleRepository.recover(existingRole);
+        } else {
+          newRole = new Role();
+        }
 
-        const roleRepository = queryRunner.manager.getRepository(Role);
-        const { permissionIds } = createRoleDto;
-        const permissionInstances = await queryRunner.manager.find(Permission, {
-          where: { id: In(permissionIds) },
-        });
-
-        const foundPermissionIds = permissionInstances.map(
-          (permissionInstance: Permission) => permissionInstance.id,
-        );
-
-        const missingPermissionIds = permissionIds.filter(
-          (id: number) => !foundPermissionIds.includes(id),
-        );
-        if (missingPermissionIds.length > 0)
-          throw new NotFoundException(
-            `Permission/s not found for id/s: ${missingPermissionIds.join(', ')}`,
-          );
-
-        const newRole = new Role();
         Object.assign(newRole, omit(createRoleDto, ['permissionIds']));
 
         const role = roleRepository.create({
@@ -123,7 +114,7 @@ export class RoleService {
       ? queryRunner.manager.getRepository(Role)
       : this.roleRepository;
     const [role, error] = await safeError(
-      roleRepository.findOne({ where: { name } }),
+      roleRepository.findOne({ where: { name }, withDeleted: true }),
     );
     if (error)
       throw new InternalServerErrorException('Error while retreiving role.');
@@ -149,28 +140,18 @@ export class RoleService {
             ...omit(updateRoleDto, ['permissionIds']),
           });
         } else {
-          const permissionRepository =
-            queryRunner.manager.getRepository(Permission);
-          const foundPermissionInstances = await permissionRepository.find({
-            where: { id: In(incommingPermissionIds) },
-          });
-          const foundPermissionIds = foundPermissionInstances.map(
-            (permission) => permission.id,
+          const permissionInstances = await this.getPermissionInstances(
+            updateRoleDto.permissionIds,
+            queryRunner,
           );
-          const missingPermissionIds = incommingPermissionIds.filter(
-            (id) => !foundPermissionIds.includes(id),
-          );
-          if (missingPermissionIds.length > 0)
-            throw new NotFoundException(
-              `Permissions with id's: ${missingPermissionIds.join(', ')} not found.`,
-            );
+
           Object.assign(existingRole, {
             ...omit(updateRoleDto, ['permissionIds']),
-            permissions: foundPermissionInstances,
+            permissions: permissionInstances,
           });
         }
-        const toUpdateVacancy = roleRepository.create(existingRole);
-        const updatedRole = await queryRunner.manager.save(toUpdateVacancy);
+        const toUpdateRole = roleRepository.create(existingRole);
+        const updatedRole = await queryRunner.manager.save(toUpdateRole);
         return {
           success: true,
           message: `Role updated successfully.`,
@@ -198,5 +179,27 @@ export class RoleService {
       success: true,
       message: `Role ${role.name} deleted successfully.`,
     };
+  }
+
+  async getPermissionInstances(
+    permissionIds: number[],
+    queryRunner: QueryRunner,
+  ): Promise<Permission[]> {
+    const permissionInstances = await queryRunner.manager.find(Permission, {
+      where: { id: In(permissionIds) },
+    });
+
+    const foundPermissionIds = permissionInstances.map(
+      (permissionInstance: Permission) => permissionInstance.id,
+    );
+
+    const missingPermissionIds = permissionIds.filter(
+      (id: number) => !foundPermissionIds.includes(id),
+    );
+    if (missingPermissionIds.length > 0)
+      throw new NotFoundException(
+        `Permission/s not found for id/s: ${missingPermissionIds.join(', ')}`,
+      );
+    return permissionInstances;
   }
 }

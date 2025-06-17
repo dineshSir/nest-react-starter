@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Role } from 'src/modules/role/entities/role.entity';
+import { Role } from 'src/role/entities/role.entity';
 import { DataSource } from 'typeorm';
 import { Seeder } from 'typeorm-extension';
 

@@ -8,10 +8,10 @@ import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { Role } from 'src/modules/role/entities/role.entity';
 import { RolePermissions } from '../enums/role-permission.enum';
 import { PERMISSIONS_KEY, REQUEST_USER_KEY } from '../constants/auth-constants';
 import { ActiveUserData } from '../interfaces/active-user-data.interfce';
+import { Role } from 'src/role/entities/role.entity';
 
 @Injectable()
 export class PermissionGuard implements CanActivate {

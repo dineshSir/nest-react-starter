@@ -7,7 +7,7 @@ export class EsewaPaymentHistory extends CommonEntity {
   product_code: string;
 
   @Column()
-  transaction_uuid: number;
+  transaction_uuid: string;
 
   @Column()
   total_amount: number;

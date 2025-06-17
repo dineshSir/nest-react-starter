@@ -1,9 +1,5 @@
-import {
-  ConflictException,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+const CryptoJS = require('crypto-js');
 import axios from 'axios';
 import { EsewaPaymentInitiateInterface } from 'src/common/interfaces/payment-initiate.interface';
 import { DataSource } from 'typeorm';
@@ -17,10 +13,7 @@ import {
 
 @Injectable()
 export class EsewaService {
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly dataSource: DataSource,
-  ) {}
+  constructor(private readonly dataSource: DataSource) {}
   async getEsewaInitiationSignature(
     esewaInitData: EsewaPaymentInitiateInterface,
   ) {
@@ -32,7 +25,7 @@ export class EsewaService {
 
   async generateEsewaSignature(signatureInput: string) {
     try {
-      const esewaSecretKey = process.env.ESEWA_SECRET_KEY || '8gBm/:&EnhH.1/q';
+      const esewaSecretKey = process.env.ESEWA_SECRET_KEY;
       const hash = CryptoJS.HmacSHA256(signatureInput, esewaSecretKey);
       const hashInBase64 = CryptoJS.enc.Base64.stringify(hash);
       return hashInBase64;
@@ -58,7 +51,8 @@ export class EsewaService {
           return `${signedName}=${value}`;
         })
         .join(',');
-      const signature = this.generateEsewaSignature(message);
+      const signature = await this.generateEsewaSignature(message);
+
       if (signature !== decodedData.signature)
         throw new EsewaSignatureMismatchException(`Signatures did not match.`);
 
@@ -112,6 +106,7 @@ export class EsewaService {
         esewaPaymentHistoryInstance,
       );
     } catch (error) {
+      console.log(error);
       throw new EsewaPaymentHistorySavingException(
         `Error while saving esewa payment data.`,
       );
