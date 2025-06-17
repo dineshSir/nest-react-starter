@@ -19,10 +19,11 @@ const PaymentCard = ({
     "esewa"
   );
   const [isNext, setIsNext] = useState<boolean>(false);
-  const handlePayment = async (payment_method: string) => {
-    const url = "/payment/khalti-pay";
+  const handlePayment = async (payment_method:string) => {
+    const url = payment_method === "esewa" ?"/payment/esewa":"/payment/khalti-pay";
     const data = {
 amount: amount,
+productCode: "productABC_Code"
     };
     try {
       const response = await Fetch({
@@ -31,7 +32,7 @@ amount: amount,
         data: data,
       });
       if (response) {
-        
+      
         const responseData: any = response;
           khaltiCall(responseData);
         
