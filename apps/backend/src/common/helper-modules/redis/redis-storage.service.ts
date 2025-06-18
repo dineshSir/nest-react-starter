@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import Redis from 'ioredis';
-import { InvalidDataException } from 'src/common/errors/redis-response.errors';
 import { redisConfig } from 'src/configurations/redis.config';
 
 @Injectable()

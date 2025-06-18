@@ -16,9 +16,9 @@ import { MailingModule } from './common/helper-modules/mailing/mailing.module';
   imports: [
     ConfigurationModule,
     DatabaseModule,
+    RedisModule,
     MailingModule,
     PaymentGateway,
-    RedisModule,
     HashingModule,
     PermissionModule,
     RoleModule,
